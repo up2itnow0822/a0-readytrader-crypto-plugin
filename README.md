@@ -1,42 +1,43 @@
-> ⚠️ **Early Development** — This A0 plugin is a minimal wrapper. The full trading engine lives in [ReadyTrader-Crypto](https://github.com/up2itnow0822/ReadyTrader-Crypto).
+# a0-readytrader-crypto-plugin
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Agent Zero Plugin](https://img.shields.io/badge/Agent%20Zero-Plugin-blue)](https://github.com/frdel/agent-zero)
 
-# ReadyTrader Crypto — Agent Zero Plugin
+**Agent Zero plugin** for automated Crypto trading via the ReadyTrader strategy engine.
 
-An Agent Zero plugin that connects your agent to the [ReadyTrader-Crypto](https://github.com/up2itnow0822/ReadyTrader-Crypto) MCP server. Your agent gets real-time crypto prices, OHLCV chart data, sentiment analysis, risk validation, and backtesting — all through a running ReadyTrader-Crypto instance.
+## Installation
 
-## What it does
+```bash
+git clone https://github.com/up2itnow0822/a0-readytrader-crypto-plugin.git
+cd a0-readytrader-crypto-plugin
+pip install -r requirements.txt
+```
 
-- **Get prices** — fetch live crypto prices from Binance, Coinbase, or Kraken
-- **Pull chart data** — OHLCV candles at any timeframe
-- **Check sentiment** — aggregated news and social sentiment
-- **Validate risk** — run proposed trades through risk management rules before executing
-- **Backtest strategies** — test trading logic against historical data
-- **Detect regimes** — identify whether a market is trending, ranging, or volatile
+## Usage
 
-> **Note:** The capabilities above are provided by the ReadyTrader-Crypto MCP server. This plugin is a thin wrapper that exposes those tools to Agent Zero. The trading engine itself is not implemented here.
-
-## Setup
-
-1. Install and run the [ReadyTrader-Crypto](https://github.com/up2itnow0822/ReadyTrader-Crypto) MCP server
-2. Drop this plugin into your Agent Zero plugins directory
-3. Configure the MCP server URL in Settings → Agent → ReadyTrader Crypto
-
-The plugin defaults to paper trading mode. Switch to live in the settings when you're ready.
+```python
+# Add to Agent Zero plugins directory and configure your broker credentials
+```
 
 ## Configuration
 
-All settings are configurable through the Agent Zero UI or `default_config.yaml`:
+Set the following environment variables:
+```bash
+BROKER_API_KEY=your_key
+BROKER_API_SECRET=your_secret
+```
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `mcp_server_url` | `http://localhost:8000` | ReadyTrader-Crypto server address |
-| `trading_mode` | `paper` | `paper` or `live` |
-| `default_exchange` | `binance` | Exchange for price lookups |
-| `max_position_size_usd` | `1000` | Per-trade size cap |
-| `max_portfolio_risk_pct` | `5.0` | Max portfolio risk percentage |
+## Ecosystem
+
+- [agent-wallet-sdk](https://github.com/up2itnow0822/agent-wallet-sdk) — Non-custodial agent wallets (`npm install agentwallet-sdk`)
+- [agentpay-mcp](https://github.com/up2itnow0822/agentpay-mcp) — MCP server for agent payments
+- [webmcp-sdk](https://github.com/up2itnow0822/webmcp-sdk) — Browser-native WebMCP integration
+- [AgentNexus2](https://github.com/up2itnow0822/AgentNexus2) — TaskBridge agent marketplace
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
