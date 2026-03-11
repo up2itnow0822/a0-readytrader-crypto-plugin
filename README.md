@@ -1,3 +1,7 @@
+> ⚠️ **Early Development** — This A0 plugin is a minimal wrapper. The full trading engine lives in [ReadyTrader-Crypto](https://github.com/up2itnow0822/ReadyTrader-Crypto).
+
+---
+
 # ReadyTrader Crypto — Agent Zero Plugin
 
 An Agent Zero plugin that connects your agent to the [ReadyTrader-Crypto](https://github.com/up2itnow0822/ReadyTrader-Crypto) MCP server. Your agent gets real-time crypto prices, OHLCV chart data, sentiment analysis, risk validation, and backtesting — all through a running ReadyTrader-Crypto instance.
@@ -10,6 +14,8 @@ An Agent Zero plugin that connects your agent to the [ReadyTrader-Crypto](https:
 - **Validate risk** — run proposed trades through risk management rules before executing
 - **Backtest strategies** — test trading logic against historical data
 - **Detect regimes** — identify whether a market is trending, ranging, or volatile
+
+> **Note:** The capabilities above are provided by the ReadyTrader-Crypto MCP server. This plugin is a thin wrapper that exposes those tools to Agent Zero. The trading engine itself is not implemented here.
 
 ## Setup
 
