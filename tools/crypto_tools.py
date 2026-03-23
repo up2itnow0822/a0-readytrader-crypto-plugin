@@ -4,8 +4,6 @@ Wraps the ReadyTrader-Crypto MCP server to give agents access to
 cryptocurrency market data, risk validation, backtesting, and trading.
 """
 import json
-import os
-from typing import Optional
 
 import httpx
 
