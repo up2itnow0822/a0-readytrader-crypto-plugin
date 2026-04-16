@@ -1,3 +1,4 @@
+name: readytrader_crypto
 title: ReadyTrader Crypto
 description: Connect your agent to cryptocurrency markets through the ReadyTrader-Crypto MCP server. Get prices, run backtests, manage risk, and execute paper or live trades on major exchanges.
 version: 1.0.0
