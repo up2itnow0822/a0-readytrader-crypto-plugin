@@ -4,6 +4,7 @@ Wraps the ReadyTrader-Crypto MCP server to give agents access to
 cryptocurrency market data, risk validation, backtesting, and trading.
 """
 import json
+from urllib.parse import urlparse
 
 import httpx
 
@@ -11,29 +12,91 @@ from python.helpers.tool import Tool, Response
 from python.helpers.plugins import get_plugin_config
 
 
+_BLOCKED_HOSTS = {
+    "169.254.169.254",
+    "metadata.google.internal",
+    "metadata.azure.com",
+}
+_DEFAULT_URL = "http://localhost:8000"
+_ALLOWED_EXCHANGES = {"binance", "coinbase", "kraken", "okx", "bybit"}
+_STRATEGY_CODE_LIMIT = 20000
+
+
+def _validate_url(url: str):
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return _DEFAULT_URL, f"Invalid mcp_server_url ({url!r}); falling back to {_DEFAULT_URL}."
+    if parsed.scheme not in ("http", "https"):
+        return _DEFAULT_URL, f"mcp_server_url must use http or https; falling back to {_DEFAULT_URL}."
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return _DEFAULT_URL, f"mcp_server_url has no host; falling back to {_DEFAULT_URL}."
+    if host in _BLOCKED_HOSTS:
+        return _DEFAULT_URL, (
+            f"mcp_server_url host {host!r} is blocked (SSRF protection); "
+            f"falling back to {_DEFAULT_URL}."
+        )
+    return url, None
+
+
 def _cfg(agent) -> dict:
     defaults = {
-        "mcp_server_url": "http://localhost:8000",
+        "mcp_server_url": _DEFAULT_URL,
         "trading_mode": "paper",
         "default_exchange": "binance",
         "default_timeframe": "1h",
         "max_position_size_usd": 1000.0,
+        "mcp_request_timeout": 30,
     }
     cfg = get_plugin_config("readytrader_crypto", agent=agent) or {}
     for k, v in defaults.items():
         cfg.setdefault(k, v)
+    safe_url, warning = _validate_url(cfg["mcp_server_url"])
+    cfg["mcp_server_url"] = safe_url
+    if warning:
+        cfg["_ssrf_warning"] = warning
     return cfg
 
 
-async def _call_mcp(base_url: str, tool_name: str, args: dict) -> dict:
-    """Call an MCP tool on the ReadyTrader-Crypto server."""
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            f"{base_url}/mcp/call_tool",
-            json={"name": tool_name, "arguments": args},
+async def _call_mcp(base_url: str, tool_name: str, args: dict, timeout: float = 30) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(
+                f"{base_url}/mcp/call_tool",
+                json={"name": tool_name, "arguments": args},
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        return {
+            "error": "mcp_unreachable",
+            "message": (
+                f"MCP server unreachable at {base_url}. "
+                "Start ReadyTrader-Crypto MCP server per README."
+            ),
+            "detail": str(e),
+        }
+
+
+def _format(result: dict, warning: str | None) -> str:
+    body = json.dumps(result, indent=2)
+    if warning:
+        return f"[WARNING] {warning}\n{body}"
+    return body
+
+
+def _validate_exchange(exchange: str):
+    if (exchange or "").lower() not in _ALLOWED_EXCHANGES:
+        allowed = ", ".join(sorted(_ALLOWED_EXCHANGES))
+        return Response(
+            message=(
+                f"Invalid exchange {exchange!r}. "
+                f"Allowed exchanges (lowercase): {allowed}."
+            ),
+            break_loop=False,
         )
-        resp.raise_for_status()
-        return resp.json()
+    return None
 
 
 class GetCryptoPrice(Tool):
@@ -42,14 +105,18 @@ class GetCryptoPrice(Tool):
     async def execute(self, **kwargs) -> Response:
         cfg = _cfg(self.agent)
         symbol = self.args.get("symbol", "BTC/USDT")
-        exchange = self.args.get("exchange", cfg["default_exchange"])
+        exchange = str(self.args.get("exchange", cfg["default_exchange"])).lower()
+        bad = _validate_exchange(exchange)
+        if bad:
+            return bad
         try:
             result = await _call_mcp(
                 cfg["mcp_server_url"],
                 "get_crypto_price",
-                {"symbol": symbol, "exchange": exchange},
+                {"symbol": symbol, "exchange": exchange, "mode": cfg["trading_mode"]},
+                timeout=cfg["mcp_request_timeout"],
             )
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error fetching price: {e}", break_loop=False)
 
@@ -66,9 +133,10 @@ class FetchOHLCV(Tool):
             result = await _call_mcp(
                 cfg["mcp_server_url"],
                 "fetch_ohlcv",
-                {"symbol": symbol, "timeframe": timeframe, "limit": limit},
+                {"symbol": symbol, "timeframe": timeframe, "limit": limit, "mode": cfg["trading_mode"]},
+                timeout=cfg["mcp_request_timeout"],
             )
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error fetching OHLCV: {e}", break_loop=False)
 
@@ -87,9 +155,11 @@ class ValidateTradeRisk(Tool):
                     "symbol": self.args.get("symbol", "BTC/USDT"),
                     "amount_usd": float(self.args.get("amount_usd", 100)),
                     "portfolio_value": float(self.args.get("portfolio_value", 10000)),
+                    "mode": cfg["trading_mode"],
                 },
+                timeout=cfg["mcp_request_timeout"],
             )
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error validating risk: {e}", break_loop=False)
 
@@ -99,17 +169,28 @@ class RunBacktest(Tool):
 
     async def execute(self, **kwargs) -> Response:
         cfg = _cfg(self.agent)
+        strategy_code = self.args.get("strategy_code", "") or ""
+        if len(strategy_code) > _STRATEGY_CODE_LIMIT:
+            return Response(
+                message=(
+                    f"strategy_code too large ({len(strategy_code)} chars, "
+                    f"max {_STRATEGY_CODE_LIMIT}). Shrink the strategy or split it."
+                ),
+                break_loop=False,
+            )
         try:
             result = await _call_mcp(
                 cfg["mcp_server_url"],
                 "run_backtest_simulation",
                 {
-                    "strategy_code": self.args.get("strategy_code", ""),
+                    "strategy_code": strategy_code,
                     "symbol": self.args.get("symbol", "BTC/USDT"),
                     "timeframe": self.args.get("timeframe", cfg["default_timeframe"]),
+                    "mode": cfg["trading_mode"],
                 },
+                timeout=cfg["mcp_request_timeout"],
             )
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error running backtest: {e}", break_loop=False)
 
@@ -120,8 +201,13 @@ class GetMarketSentiment(Tool):
     async def execute(self, **kwargs) -> Response:
         cfg = _cfg(self.agent)
         try:
-            result = await _call_mcp(cfg["mcp_server_url"], "get_sentiment", {})
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            result = await _call_mcp(
+                cfg["mcp_server_url"],
+                "get_sentiment",
+                {},
+                timeout=cfg["mcp_request_timeout"],
+            )
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error fetching sentiment: {e}", break_loop=False)
 
@@ -138,7 +224,8 @@ class GetMarketRegime(Tool):
                 cfg["mcp_server_url"],
                 "get_market_regime",
                 {"symbol": symbol, "timeframe": timeframe},
+                timeout=cfg["mcp_request_timeout"],
             )
-            return Response(message=json.dumps(result, indent=2), break_loop=False)
+            return Response(message=_format(result, cfg.get("_ssrf_warning")), break_loop=False)
         except Exception as e:
             return Response(message=f"Error fetching regime: {e}", break_loop=False)

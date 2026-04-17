@@ -3,10 +3,13 @@
 # MCP server connection
 mcp_server_url: "http://localhost:8000"
 
+# Timeout for MCP HTTP calls (seconds)
+mcp_request_timeout: 30
+
 # Trading mode: paper (simulated) or live
 trading_mode: "paper"
 
-# Default exchange for price data
+# Default exchange for price data (allow-list: binance, coinbase, kraken, okx, bybit)
 default_exchange: "binance"
 
 # Paper trading starting balance (USD)
