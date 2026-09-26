@@ -16,11 +16,13 @@ Setting up the server (apply): check that the MCP settings can be updated, clone
 <plugin>/server at `server_ref`, install its requirements into <plugin>/server/.venv with Agent Zero's own
 Python, start it once over MCP stdio in a separate process (mcp_smoke.py) and require positive proof that it
 lists the tools the skill uses and refuses exchange-account tools in paper mode, then register it under
-Settings -> MCP/A2A -> External MCP Servers. Any failure before registration completes rolls the checkout
+Settings -> MCP/A2A -> External MCP Servers as `readytrader_crypto`. Any failure before registration completes rolls the checkout
 back (or moves an unverified fresh checkout aside) and leaves the MCP settings as they were.
 
 The server always runs the paper profile below. It is not a setting: this plugin never enables live
-execution, and the entry it writes carries no credentials.
+execution, and the entry it writes carries no credentials. The MCP server name is not a setting either: the
+skill calls the tools as readytrader_crypto.<tool>, so an entry under any other name would leave those calls
+to whatever server holds that name.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------------------------- product
 
 PLUGIN_NAME = "readytrader_crypto"
+MCP_NAME = PLUGIN_NAME  # the MCP entry's name, fixed: the skill's tool calls are readytrader_crypto.<tool>
 TITLE = "ReadyTrader Crypto"
 PRODUCT = "ReadyTrader-Crypto"
 PLUGIN_DIR = Path(__file__).resolve().parent
@@ -55,7 +58,6 @@ MIN_PYTHON = (3, 12)
 DEFAULTS = {
     "server_repo": "https://github.com/up2itnow0822/ReadyTrader-Crypto.git",
     "server_ref": "main",
-    "mcp_server_name": "readytrader_crypto",
     "init_timeout": 60,
     "tool_timeout": 120,
 }
@@ -142,9 +144,6 @@ def normalize_config(saved: dict | None) -> dict:
             cfg[key] = value
     cfg["server_repo"] = check_repo(cfg["server_repo"])
     cfg["server_ref"] = check_ref(cfg["server_ref"])
-    cfg["mcp_server_name"] = str(cfg["mcp_server_name"]).strip()
-    if not re.fullmatch(r"[a-z0-9_]+", cfg["mcp_server_name"]):
-        raise SetupError(f"mcp_server_name must be lowercase letters, digits and underscores, not {cfg['mcp_server_name']!r}")
     cfg["init_timeout"] = _timeout("init_timeout", cfg["init_timeout"])
     cfg["tool_timeout"] = _timeout("tool_timeout", cfg["tool_timeout"])
     return cfg
@@ -424,7 +423,7 @@ def _write_servers(servers: dict, extras: dict) -> None:
 
 
 def ours(entry, key: str | None = None, name: str | None = None) -> bool:
-    """Our entry: it carries MARKER, or it is the entry under our configured name and still runs our
+    """Our entry: it carries MARKER, or it is the entry under our name and still runs our
     server.py (the user edited its description). Another name pointing at our server.py is the user's."""
     if not isinstance(entry, dict):
         return False
@@ -439,7 +438,8 @@ def check_clash(name: str, servers: dict) -> None:
     if clash:
         raise SetupError(
             f"An MCP server named {clash[0]!r} already exists (Agent Zero calls it {name!r}) and was not added by "
-            "this plugin; remove or rename it, or set a different MCP server name in the plugin settings")
+            f"this plugin. The plugin's skill calls the tools as {name}.<tool>, so it needs that name: remove or "
+            "rename that server, then install again (or save the plugin settings)")
 
 
 def keep_user_additions(entry: dict, previous) -> tuple[dict, list[str]]:
@@ -469,7 +469,7 @@ def keep_user_additions(entry: dict, previous) -> tuple[dict, list[str]]:
 def register(cfg: dict, entry: dict) -> bool:
     """Add or refresh this plugin's MCP entry; never touch another server. Returns True if written."""
     servers, extras = _read_servers()
-    name = cfg["mcp_server_name"]
+    name = MCP_NAME
     check_clash(name, servers)
     previous = servers.get(name) if ours(servers.get(name), name, name) else next(
         (v for k, v in servers.items() if ours(v)), None)
@@ -477,7 +477,7 @@ def register(cfg: dict, entry: dict) -> bool:
     if dropped:
         _notify("warning", f"Removed {', '.join(dropped)} from the {name} MCP entry: the plugin keeps only proxy and "
                            f"CA-bundle variables there, and runs {PRODUCT} without credentials.")
-    mine = [k for k, v in servers.items() if k != name and ours(v)]  # a previous name of ours goes
+    mine = [k for k, v in servers.items() if k != name and ours(v)]  # an entry of ours under an older name goes
     if servers.get(name) == entry and not mine:
         return False
     servers = {k: v for k, v in servers.items() if k not in mine}
@@ -488,11 +488,7 @@ def register(cfg: dict, entry: dict) -> bool:
 
 def unregister() -> bool:
     servers, extras = _read_servers()
-    try:
-        name = load_config()["mcp_server_name"]
-    except Exception:
-        name = DEFAULTS["mcp_server_name"]
-    mine = [k for k, v in servers.items() if ours(v, k, name)]
+    mine = [k for k, v in servers.items() if ours(v, k, MCP_NAME)]
     if mine:
         _write_servers({k: v for k, v in servers.items() if k not in mine}, extras)
     return bool(mine)
@@ -572,7 +568,7 @@ def apply(cfg: dict) -> int:
     """Set up the server with cfg and register it; on any failure roll back and raise."""
     with _setup_lock():
         servers, _ = _read_servers()  # before anything moves: the settings must be updatable
-        check_clash(cfg["mcp_server_name"], servers)
+        check_clash(MCP_NAME, servers)
         python, undo = ensure_server(cfg)
         entry = mcp_entry(cfg, python)
         try:
@@ -604,7 +600,7 @@ def save_plugin_config(default=None, settings=None, project_name: str = "", agen
     except Exception as e:
         _notify("error", f"Settings not saved. {e}")
         raise
-    _notify("success", f"Settings saved: {PRODUCT} at {cfg['server_ref']!r} is registered as {cfg['mcp_server_name']} ({tools} tools).")
+    _notify("success", f"Settings saved: {PRODUCT} at {cfg['server_ref']!r} is registered as {MCP_NAME} ({tools} tools).")
     return {key: cfg[key] for key in DEFAULTS}
 
 
