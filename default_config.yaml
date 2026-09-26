@@ -7,9 +7,8 @@
 server_repo: "https://github.com/up2itnow0822/ReadyTrader-Crypto.git"
 server_ref: "main"
 
-# Name of the entry the setup adds under Settings -> MCP/A2A -> External MCP Servers.
-# The agent sees the tools as <name>.<tool>, e.g. readytrader_crypto.get_crypto_price.
-mcp_server_name: "readytrader_crypto"
+# The MCP entry is always named readytrader_crypto (the agent sees readytrader_crypto.get_crypto_price and
+# so on): the skill calls the tools by that name, so it is not a setting.
 
 # Seconds Agent Zero waits for the server to list its tools, and for one tool call.
 # Agent Zero starts the server afresh for each operation, so allow for its start-up time.
