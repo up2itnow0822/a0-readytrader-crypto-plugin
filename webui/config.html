@@ -10,11 +10,11 @@
                 <div class="section-title">ReadyTrader Crypto (paper)</div>
                 <div class="section-description">
                     The plugin installs the ReadyTrader-Crypto MCP server into its own folder and registers it under
-                    MCP/A2A &rarr; External MCP Servers. The server always runs the paper profile: paper mode, trading
-                    halted, live execution disabled, no exchange keys. Saving applies the settings at once: the server is
-                    moved to the chosen version, checked, and registered again (a version change can take a few
-                    minutes). If that fails, nothing is saved and the current setup stays as it was. Saving again
-                    without changes repairs the setup.
+                    MCP/A2A &rarr; External MCP Servers as <code>readytrader_crypto</code>. The server always runs the
+                    paper profile: paper mode, trading halted, live execution disabled, no exchange keys. Saving applies
+                    the settings at once: the server is moved to the chosen version, checked, and registered again (a
+                    version change can take a few minutes). If that fails, nothing is saved and the current setup stays
+                    as it was. Saving again without changes repairs the setup.
                 </div>
 
                 <div class="field">
@@ -44,20 +44,6 @@
                         <input type="text"
                             x-init="if (!config.server_ref) config.server_ref = 'main'"
                             x-model="config.server_ref" />
-                    </div>
-                </div>
-
-                <div class="field">
-                    <div class="field-label">
-                        <div class="field-title">MCP server name</div>
-                        <div class="field-description">
-                            The agent sees the tools as <code>&lt;name&gt;.&lt;tool&gt;</code>. Letters, digits and underscores.
-                        </div>
-                    </div>
-                    <div class="field-control">
-                        <input type="text"
-                            x-init="if (!config.mcp_server_name) config.mcp_server_name = 'readytrader_crypto'"
-                            x-model="config.mcp_server_name" />
                     </div>
                 </div>
 
