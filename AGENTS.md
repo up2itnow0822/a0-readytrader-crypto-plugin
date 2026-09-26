@@ -17,15 +17,17 @@ server. The repository root is the plugin folder Agent Zero installs into `usr/p
 ## Local Contracts
 
 - `plugin.yaml` — Agent Zero manifest fields only; `name` == `readytrader_crypto`; `settings_sections` from
-  Agent Zero's set (`agent`, `external`, `mcp`, `developer`, `backup`); `version` matches CHANGELOG and the skill
+  Agent Zero's set (`agent`, `external`, `mcp`, `developer`, `backup`); `version` matches CHANGELOG and the
+  skill
 - `hooks.py` — the only lifecycle code: `install()` and `save_plugin_config()` both run `apply(cfg)` under a
-  file lock (read + clash-check the MCP settings, clone/fetch the server at `server_ref` into `server/`,
-  venv with Agent Zero's Python, requirements, an empty `server/.env` so the server never reads Agent
-  Zero's `usr/.env`, the smoke test, then register the MCP entry last, or ask Agent Zero to reload it when
-  the entry text is unchanged); any failure before registration completes rolls the checkout back (or
-  moves an unverified fresh checkout aside as `server.failed-*`) and writes nothing. `save_plugin_config()` validates and applies before Agent Zero writes
-  `config.json`, so saved settings are always applied settings. `pre_update()` is a no-op;
-  `uninstall()` removes only our entry and never raises. Setup never lives in `execute.py`
+  file lock (read + clash-check the MCP settings, clone/fetch the server at `server_ref` into `server/`, venv
+  with Agent Zero's Python, requirements, an empty `server/.env` so the server never reads Agent Zero's
+  `usr/.env`, the smoke test, then register the MCP entry last, or ask Agent Zero to reload it when the entry
+  text is unchanged); any failure before registration completes rolls the checkout back (or moves an
+  unverified fresh checkout aside as `server.failed-*`) and writes nothing. `save_plugin_config()` validates
+  and applies before Agent Zero writes `config.json`, so saved settings are always applied settings.
+  `pre_update()` is a no-op; `uninstall()` removes only our entry and never raises. Setup never lives in
+  `execute.py`
 - `mcp_smoke.py` — the smoke test, run by `hooks.smoke_test()` in its own Python process (never inside Agent
   Zero's patched event loop); the server is registered only on its positive proof (tool count, required
   tools present, gate passed); a timeout kills the process group
@@ -39,11 +41,13 @@ server. The repository root is the plugin folder Agent Zero installs into `usr/p
 - Registration never overwrites or removes a server the plugin did not add, including one whose name Agent
   Zero normalises to ours; it reads every `mcp_servers` shape Agent Zero accepts and writes back
   `{"mcpServers": {...}}` with every server and other top-level key kept; non-strict JSON is never
-  rewritten. Our entry is recognised by `MARKER`, or by its `server.py` path only under our configured
-  name (another name pointing at our server is the user's). A refresh keeps `disabled` / `disabled_tools`
+  rewritten. Our entry is recognised by `MARKER`, or by its `server.py` entrypoint only under `MCP_NAME`
+  (another name pointing at our server is the user's). A refresh keeps `disabled` / `disabled_tools`
   and only the proxy/CA variables in `USER_ENV_ALLOWED`; everything else the user added is removed
+- The MCP entry's name is fixed (`MCP_NAME` = `readytrader_crypto`), never a setting: the skill's tool calls
+  are `readytrader_crypto.<tool>`, and under another name they would reach whatever server holds that name
 - Settings are validated in `normalize_config`: https repo or absolute directory, `server_ref` a
-  branch/tag/full SHA that can never be read as a git option, name `[a-z0-9_]+`, timeouts 5-3600 s
+  branch/tag/full SHA that can never be read as a git option, timeouts 5-3600 s
 - `skills/readytrader-crypto-paper/SKILL.md` — Agent Zero skill rules (name `^[a-z0-9-]+$`, description
   <= 1024); names only real ReadyTrader-Crypto tools; market orders never carry a `price`
 - `webui/config.html` binds only `config.<key>` for exactly the keys in `default_config.yaml`
@@ -54,7 +58,9 @@ server. The repository root is the plugin folder Agent Zero installs into `usr/p
 
 ## Work Guidance
 
-- When ReadyTrader-Crypto adds or renames a tool, update `SERVER_TOOLS` in `tests/test_contract.py` and the skill
+- When ReadyTrader-Crypto adds or renames a tool or a tool parameter, update `SERVER_TOOLS` (tool -> parameters,
+  from the server's MCP schemas) in `tests/test_contract.py` and the skill; the contract tests pin
+  `PAPER_ENV`, `DB_FILES`, `REQUIRED_TOOLS`, `PAPER_GATE`, `ENTRYPOINT` and `MCP_NAME` against it
 - Verify behaviour in a real Agent Zero framework process (hooks + MCP client), not only with the unit fakes
 - Paper-first only; never add a live-trading path or a setting that could enable one
 
