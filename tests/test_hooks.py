@@ -106,11 +106,13 @@ def test_an_unreadable_config_json_is_an_error_not_the_defaults(env):
         env.hooks.load_config()
 
 
-@pytest.mark.parametrize("name", ["ReadyTrader", "ready-trader", "a b"])
-def test_server_name_must_be_a_plain_identifier(env, name):
-    env.plugins.saved = {"mcp_server_name": name}
-    with pytest.raises(env.hooks.SetupError, match="mcp_server_name"):
-        env.hooks.load_config()
+def test_the_mcp_name_is_fixed_whatever_the_saved_settings_say(env):
+    # The skill calls readytrader_crypto.<tool>; an entry under another name would send those calls elsewhere.
+    env.plugins.saved = {"mcp_server_name": "rt_paper"}  # a 2.0.0 pre-release setting, now ignored
+    cfg = env.hooks.load_config()
+    assert "mcp_server_name" not in cfg
+    env.hooks.register(cfg, entry(env))
+    assert list(servers(env)) == ["readytrader_crypto"]
 
 
 @pytest.mark.parametrize("url,ok", [
@@ -208,16 +210,15 @@ def test_register_is_idempotent(env):
 @pytest.mark.parametrize("theirs", ["readytrader_crypto", "ReadyTrader-Crypto", " readytrader crypto"])
 def test_register_refuses_a_server_agent_zero_would_confuse_with_ours(env, theirs):
     env.settings.value["mcp_servers"] = json.dumps({"mcpServers": {theirs: {"command": "mine", "env": {"PAPER_MODE": "false"}}}})
-    with pytest.raises(env.hooks.SetupError, match="not added by this plugin"):
+    with pytest.raises(env.hooks.SetupError, match="(?s)not added by this plugin.*needs that name"):
         env.hooks.register(env.hooks.load_config(), entry(env))
     assert env.settings.writes == []
 
 
-def test_a_new_server_name_replaces_the_old_entry_of_ours(env):
-    env.hooks.register(env.hooks.load_config(), entry(env))
-    env.plugins.saved = {"mcp_server_name": "rt_crypto"}
-    env.hooks.register(env.hooks.load_config(), entry(env))
-    assert list(servers(env)) == ["rt_crypto"]
+def test_an_entry_of_ours_under_another_name_moves_to_the_fixed_name(env):
+    env.settings.value["mcp_servers"] = json.dumps({"mcpServers": {"rt_crypto": entry(env), "other": {"command": "npx"}}})
+    assert env.hooks.register(env.hooks.load_config(), entry(env)) is True
+    assert sorted(servers(env)) == ["other", "readytrader_crypto"]
 
 
 def test_a_users_own_server_running_our_server_py_is_left_alone(env):
