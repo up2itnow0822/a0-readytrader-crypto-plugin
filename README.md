@@ -32,7 +32,8 @@ Installation takes a few minutes. `install()`:
 2. starts the server once over MCP stdio, checks that it offers the tools the skill uses, and checks
    that it refuses an exchange-account tool (`list_cex_open_orders`) in paper mode;
 3. adds an entry named `readytrader_crypto` under **Settings &rarr; MCP/A2A &rarr; External MCP
-   Servers**, pointing at that server with the paper profile. Your other servers are kept as they are
+   Servers**, pointing at that server with the paper profile. The name is fixed: the skill calls the
+   tools as `readytrader_crypto.<tool>`. Your other servers are kept as they are
    (the settings JSON is saved back as `{"mcpServers": {...}}`, so comments and formatting in it are
    not kept), and nothing is written if any earlier step fails.
 
@@ -65,8 +66,8 @@ itself (see its `docs/LIVE_TESTING_PROTOCOL.md`), never through this plugin.
 ## Settings
 
 The plugin's settings screen (Settings &rarr; External, or the plugin's entry under **Plugins**) holds
-the server repository and version (branch, tag or full commit SHA), the MCP server name, and the
-start-up and tool-call timeouts. The paper profile is not a setting.
+the server repository and version (branch, tag or full commit SHA) and the start-up and tool-call
+timeouts. The paper profile and the MCP server name (`readytrader_crypto`) are not settings.
 
 **Saving applies the settings at once:** the server is moved to the chosen version, checked, and the
 MCP entry is registered again. A version change can take a few minutes. If any step fails, the
@@ -77,8 +78,7 @@ example after an Agent Zero upgrade changed its Python), and makes Agent Zero re
 The MCP settings must be strict JSON for any of this: the plugin will not rewrite settings with
 comments or trailing commas, because that could drop what you wrote.
 
-To choose a setting before the first install (for example a server version, or another MCP server
-name because yours is taken), give Agent Zero the environment variable
+To choose a setting before the first install (for example a server version), give Agent Zero the environment variable
 `A0_SET_readytrader_crypto__<setting>`, e.g. `A0_SET_readytrader_crypto__server_ref=v1.2.3` (in
 `usr/.env`, or `-e` for the Docker container), and restart Agent Zero. The install uses it while no
 settings have been saved; once you save the settings screen, the saved values win. (The screen's
@@ -108,8 +108,9 @@ a fork you trust.
   ReadyTrader-Crypto's paper-mode refusals. Set a newer server version.
 - **"An MCP server named ... already exists (Agent Zero calls it readytrader_crypto)":** you have your
   own entry with that name, or one Agent Zero treats as the same (it lowercases names and turns other
-  characters into `_`). Remove or rename it and install again, or preset another name with
-  `A0_SET_readytrader_crypto__mcp_server_name` (see Settings).
+  characters into `_`). Remove or rename it, then install again (or save the plugin settings). The
+  plugin cannot use another name: its skill calls the tools as `readytrader_crypto.<tool>`, and with
+  another name those calls would reach your server instead.
 - **No tools in the chat:** open Settings &rarr; MCP/A2A &rarr; External MCP Servers and check the
   entry's status and tool count. An Agent Profile with a custom tool policy can block MCP tools. Saving
   the plugin settings re-runs the setup.
