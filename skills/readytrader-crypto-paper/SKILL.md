@@ -15,8 +15,8 @@ trigger_patterns:
 
 # ReadyTrader-Crypto paper trading
 
-The ReadyTrader Crypto plugin registers the ReadyTrader-Crypto MCP server as `readytrader_crypto`.
-Its tools are called as `readytrader_crypto.<tool>` with `tool_args`, for example:
+The ReadyTrader Crypto plugin registers the ReadyTrader-Crypto MCP server as `readytrader_crypto`, always
+under that name. Its tools are called as `readytrader_crypto.<tool>` with `tool_args`, for example:
 
 ```json
 {"tool_name": "readytrader_crypto.get_crypto_price", "tool_args": {"symbol": "BTC/USDT"}}
@@ -51,8 +51,8 @@ exchange keys. Every order is simulated against a paper wallet kept in the plugi
 
 ## Good to know
 
-- Keyless news tools (`get_news`, `get_social_sentiment`, `get_financial_news`) answer
-  `not_configured` without provider keys: no data, not an outage. `get_free_news` and
+- `get_news`, `get_social_sentiment` and `get_financial_news` need provider keys, which this plugin
+  never passes to the server, so here they always answer `not_configured`. `get_free_news` and
   `get_sentiment` need no keys.
 - Order-management tools (`get_cex_order`, `cancel_cex_order`, private streams, `transfer_eth`)
   answer `paper_mode_not_supported`: paper orders fill at once and never rest on an exchange.
