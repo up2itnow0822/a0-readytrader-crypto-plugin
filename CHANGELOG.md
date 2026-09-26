@@ -13,14 +13,15 @@ stdio), with arguments the server rejects.
 - The plugin now connects ReadyTrader-Crypto through Agent Zero's own MCP client. `hooks.py`
   `install()` clones the server into the plugin folder, installs its requirements with Agent Zero's
   Python, checks that it starts, and registers it under Settings -> MCP/A2A -> External MCP Servers
-  as `readytrader_crypto`; `uninstall()` removes that entry. The agent gets all 29 server tools
+  as `readytrader_crypto` (a fixed name: the skill calls the tools by it); `uninstall()` removes that
+  entry. The agent gets all 29 server tools
   with their real schemas instead of six hand-written wrappers.
 - The server always runs the paper profile (paper mode, trading halted, live execution disabled,
   approve-each, BTC allowlists, no keys); there is no live setting. The paper wallet lives in the
   plugin folder.
 - New skill `readytrader-crypto-paper`: the paper procedure (price, risk verdict, market order
   without a price, refusal codes) and the rule to refuse live trading.
-- Settings are now the server repository and version, the MCP server name and the timeouts;
+- Settings are now the server repository and version and the timeouts;
   the old keys (`mcp_server_url`, `trading_mode`, risk limits, key env names) did nothing.
 - The 1.x tools and tests moved to `_deprecated/` (Agent Zero does not load them).
 - Saving the settings screen applies the settings at once (`save_plugin_config` hook): the server is
@@ -44,7 +45,9 @@ stdio), with arguments the server rejects.
   servers when the entry text did not change. Notifications are HTML-escaped. MCP settings are
   rewritten only when they are strict JSON, keeping other top-level keys and non-ASCII text.
 - `server_ref` must be a branch, tag or full commit SHA; a value git could read as an option is refused.
-- A server name Agent Zero would treat as the plugin's own (it lowercases names and maps other
+- The MCP entry's name is fixed (`readytrader_crypto`), not a setting: the skill calls the tools by that
+  name, so an entry under another name would leave its calls to whatever server holds this one. A
+  server name Agent Zero would treat as the plugin's own (it lowercases names and maps other
   characters to `_`) is refused instead of shadowing the paper server.
 
 ### Fixed
